@@ -3,17 +3,19 @@ package main
 import (
 	"bytes"
 	"errors"
-	"github.com/alecthomas/chroma/v2"
-	format "github.com/alecthomas/chroma/v2/formatters/html"
-	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/alecthomas/chroma/v2/styles"
-	"github.com/gomarkdown/markdown"
-	"github.com/gomarkdown/markdown/ast"
-	"github.com/gomarkdown/markdown/html"
-	"github.com/gomarkdown/markdown/parser"
 	"io"
 	"io/fs"
 	"log"
+	// Locally injected version of https://www.github.com/alecthomas/chroma v2.17.0
+	"markdown-server/chroma"
+	format "markdown-server/chroma/formatters/html"
+	"markdown-server/chroma/lexers"
+	"markdown-server/chroma/styles"
+	// Locally injected version of https://www.github.com/gomarkdown/markdown v0.0.0-20250311123330-531bef5e742b
+	"markdown-server/markdown"
+	"markdown-server/markdown/ast"
+	"markdown-server/markdown/html"
+	"markdown-server/markdown/parser"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -79,6 +81,7 @@ var CSSFileList = make([]string, 0)
 
 func WalkAndCopyCSSFilesAndFolders(path string, info fs.FileInfo, err error) error {
 	if path == FullPath {
+		err = os.MkdirAll(TargetFolder, 0700)
 		return err
 	}
 	path = strings.TrimPrefix(path, FolderName)
@@ -90,11 +93,6 @@ func WalkAndCopyCSSFilesAndFolders(path string, info fs.FileInfo, err error) err
 		return err
 	}
 	if strings.HasSuffix(path, ".css") && strings.Count(path, string(os.PathSeparator)) == 1 {
-		err = os.MkdirAll(TargetFolder, 0700)
-		if err != nil {
-			return err
-		}
-		err = CopyFile(FullPath+path, TargetFolder+path)
 		if err != nil {
 			return err
 		}
@@ -111,6 +109,11 @@ func WalkAndCopyMarkdownFiles(path string, info fs.FileInfo, err error) error {
 	path = strings.TrimPrefix(path, FolderName)
 	if strings.HasSuffix(path, ".md") {
 		err = CopyAndTransformMarkdownFile(FullPath+path, TargetFolder+path)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = CopyFile(FullPath+path, TargetFolder+path)
 		if err != nil {
 			return err
 		}
@@ -229,6 +232,7 @@ func Format(writer io.Writer, source []byte, language []byte) {
 		s = styles.Fallback
 	}
 
+	s.Types()
 	it, err := l.Tokenise(nil, string(SpecialTrim(source)))
 	if err != nil {
 		return

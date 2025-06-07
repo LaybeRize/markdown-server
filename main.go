@@ -6,6 +6,9 @@ import (
 	"io"
 	"io/fs"
 	"log"
+
+	// Locally injected version of https://github.com/aarol/reload v1.2.2
+	"markdown-server/reload"
 	// Locally injected version of https://www.github.com/alecthomas/chroma v2.17.0
 	"markdown-server/chroma"
 	format "markdown-server/chroma/formatters/html"
@@ -23,8 +26,8 @@ import (
 	"strings"
 )
 
-var FullPath = os.Getenv("MARKDOWN_PATH")
-var TargetFolder = os.Getenv("HTML_TARGET_PATH")
+var FullPath, _ = filepath.Abs(os.Getenv("MARKDOWN_PATH"))
+var TargetFolder, _ = filepath.Abs(os.Getenv("HTML_TARGET_PATH"))
 
 func main() {
 	PopulateVariables()
@@ -62,7 +65,13 @@ func WalkFileTreeTwice() {
 func StartServingGeneratedFiles() {
 	fileSystem := http.FileServer(http.Dir(TargetFolder))
 
-	http.Handle("GET /", fileSystem)
+	if os.Getenv("HOT_RELOAD") != "" {
+		reloader := reload.New(FullPath)
+		http.Handle("GET /", reloader.Handle(fileSystem))
+
+	} else {
+		http.Handle("GET /", fileSystem)
+	}
 	server := &http.Server{
 		Addr: os.Getenv("ADDRESS"),
 	}

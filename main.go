@@ -26,8 +26,8 @@ import (
 	"strings"
 )
 
-var FullPath, _ = filepath.Abs(os.Getenv("MARKDOWN_PATH"))
-var TargetFolder, _ = filepath.Abs(os.Getenv("HTML_TARGET_PATH"))
+var FullPath = os.Getenv("MARKDOWN_PATH")
+var TargetFolder = os.Getenv("HTML_TARGET_PATH")
 
 func main() {
 	PopulateVariables()
@@ -44,6 +44,7 @@ func PopulateVariables() {
 }
 
 func CleanUpFolders() {
+	CSSFileList = make([]string, 0)
 	err := os.RemoveAll(TargetFolder)
 	if err != nil {
 		log.Fatalf("While deleting old files encountered error: %v", err)
@@ -67,8 +68,11 @@ func StartServingGeneratedFiles() {
 
 	if os.Getenv("HOT_RELOAD") != "" {
 		reloader := reload.New(FullPath)
+		reloader.OnReload = func() {
+			CleanUpFolders()
+			WalkFileTreeTwice()
+		}
 		http.Handle("GET /", reloader.Handle(fileSystem))
-
 	} else {
 		http.Handle("GET /", fileSystem)
 	}
@@ -86,7 +90,7 @@ func StartServingGeneratedFiles() {
 *** FUNCTIONS FOR TRANSFERRING THE FILES ***
 ********************************************/
 
-var CSSFileList = make([]string, 0)
+var CSSFileList []string
 
 func WalkAndCopyCSSFilesAndFolders(path string, info fs.FileInfo, err error) error {
 	if path == FullPath {

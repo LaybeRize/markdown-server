@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/sys/windows"
+	"markdown-server/windows"
 )
 
 func Debug(name string, mask uint32) {

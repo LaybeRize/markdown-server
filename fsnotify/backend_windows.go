@@ -18,8 +18,8 @@ import (
 	"time"
 	"unsafe"
 
-	"golang.org/x/sys/windows"
 	"markdown-server/fsnotify/internal"
+	"markdown-server/windows"
 )
 
 type readDirChangesW struct {

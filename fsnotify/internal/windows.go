@@ -5,7 +5,7 @@ package internal
 import (
 	"errors"
 
-	"golang.org/x/sys/windows"
+	"markdown-server/windows"
 )
 
 // Just a dummy.

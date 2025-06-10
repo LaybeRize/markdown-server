@@ -75,11 +75,11 @@ func (reload *Reloader) WatchDirectories() {
 
 	debounce := NewDebouncer(100 * time.Millisecond)
 
-	callback := func(path string) func() {
+	callback := func(path string, update bool) func() {
 		return func() {
 			reload.logDebug("Edit %s\n", path)
 			if reload.OnReload != nil {
-				reload.OnReload()
+				reload.OnReload(path, update)
 			}
 			reload.cond.Broadcast()
 		}
@@ -90,26 +90,34 @@ func (reload *Reloader) WatchDirectories() {
 		case err := <-w.Errors:
 			reload.logError("error watching: %s \n", err)
 		case e := <-w.Events:
+			if strings.HasSuffix(e.Name, "~") {
+				reload.logDebug("Ignored %s\n", e.Name)
+				continue
+			}
 			switch {
 			case e.Has(fsnotify.Create):
+				reload.logDebug("Create %s\n", e.Name)
 				dir := filepath.Dir(e.Name)
 				// Watch any created directory
 				if err := w.Add(dir); err != nil {
 					reload.logError("error watching %s: %s\n", e.Name, err)
 					continue
 				}
-				debounce(callback(path.Base(e.Name)))
+				debounce(callback(path.Base(e.Name), false))
 
 			case e.Has(fsnotify.Write):
-				debounce(callback(path.Base(e.Name)))
+				reload.logDebug("Write %s\n", e.Name)
+				debounce(callback(path.Base(e.Name), true))
 
 			case e.Has(fsnotify.Rename), e.Has(fsnotify.Remove):
+				reload.logDebug("Remove or Rename %s\n", e.Name)
 				// a renamed file might be outside the specified paths
 				directories, _ := recursiveWalk(e.Name)
 				for _, v := range directories {
 					_ = w.Remove(v)
 				}
 				_ = w.Remove(e.Name)
+				debounce(callback(path.Base(e.Name), false))
 			}
 		}
 	}

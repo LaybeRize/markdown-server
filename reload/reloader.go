@@ -17,7 +17,7 @@ import (
 
 type Reloader struct {
 	// OnReload will be called after a file changes, but before the browser reloads.
-	OnReload func()
+	OnReload func(path string, update bool)
 	// directories to recursively watch
 	directories []string
 	// Endpoint defines what path the WebSocket connection is formed over.

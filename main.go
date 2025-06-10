@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -67,8 +68,17 @@ func StartServingGeneratedFiles() {
 	fileSystem := http.FileServer(http.Dir(TargetFolder))
 
 	if os.Getenv("HOT_RELOAD") != "" {
+		absolutPath, _ := filepath.Abs(FullPath)
+
 		reloader := reload.New(FullPath)
-		reloader.OnReload = func() {
+		reloader.DebugLog = nil
+		reloader.OnReload = func(path string, update bool) {
+			if update && strings.HasSuffix(path, ".md") {
+				fmt.Printf("Regenerated Target of File '%s'\n", path)
+				_ = CopyAndTransformMarkdownFile(path, TargetFolder+strings.TrimPrefix(path, absolutPath))
+				return
+			}
+			fmt.Println("Regenerated all Target Files")
 			CleanUpFolders()
 			WalkFileTreeTwice()
 		}

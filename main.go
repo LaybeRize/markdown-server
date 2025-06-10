@@ -2,14 +2,10 @@ package main
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"log"
 
-	// Locally injected version of https://github.com/aarol/reload v1.2.2
-	"markdown-server/reload"
 	// Locally injected version of https://www.github.com/alecthomas/chroma v2.17.0
 	"markdown-server/chroma"
 	format "markdown-server/chroma/formatters/html"
@@ -20,7 +16,6 @@ import (
 	"markdown-server/markdown/ast"
 	"markdown-server/markdown/html"
 	"markdown-server/markdown/parser"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -34,6 +29,7 @@ func main() {
 	PopulateVariables()
 	CleanUpFolders()
 	WalkFileTreeTwice()
+	// two versions exist one for Windows one for the rest
 	StartServingGeneratedFiles()
 }
 
@@ -61,38 +57,6 @@ func WalkFileTreeTwice() {
 	err = filepath.Walk(FullPath, WalkAndCopyMarkdownFiles)
 	if err != nil {
 		log.Fatalf("While converting + copying markdown files encountered error: %v", err)
-	}
-}
-
-func StartServingGeneratedFiles() {
-	fileSystem := http.FileServer(http.Dir(TargetFolder))
-
-	if os.Getenv("HOT_RELOAD") != "" {
-		absolutPath, _ := filepath.Abs(FullPath)
-
-		reloader := reload.New(FullPath)
-		reloader.DebugLog = nil
-		reloader.OnReload = func(path string, update bool) {
-			if update && strings.HasSuffix(path, ".md") {
-				fmt.Printf("Regenerated Target of File '%s'\n", path)
-				_ = CopyAndTransformMarkdownFile(path, TargetFolder+strings.TrimPrefix(path, absolutPath))
-				return
-			}
-			fmt.Println("Regenerated all Target Files")
-			CleanUpFolders()
-			WalkFileTreeTwice()
-		}
-		http.Handle("GET /", reloader.Handle(fileSystem))
-	} else {
-		http.Handle("GET /", fileSystem)
-	}
-	server := &http.Server{
-		Addr: os.Getenv("ADDRESS"),
-	}
-
-	log.Println("Starting server")
-	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("HTTP server error: %v", err)
 	}
 }
 
